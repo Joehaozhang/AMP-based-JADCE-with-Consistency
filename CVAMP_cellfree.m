@@ -21,30 +21,24 @@ V = repmat( zeros(N,M), [1 1 K]);
 for k=1:K
     V(:,:,k) = lsfc(:,k)*ones(1,M);
 end
-% V = 120 * ones(N,M);
-% for m=1:M
-%     V(:,m,k) = (norm(Y(:,m,k))^2-L/gamma_w)/norm(norm(S(:,m,k)))^2 * ones(N,1);
-% end
-% V = (trace(Y*Y')-L*M/gamma_w)/trace(S*S') * ones(N,M)/N;
 %% Variable Initialization
-Pi = repmat( zeros(N,M), [1 1 K]);
-Mu = repmat( zeros(N,M), [1 1 K]);
-Sigma = repmat( zeros(N,M), [1 1 K]);
-
-X_hat = repmat( zeros(N,M), [1 1 K]);
-X_var = repmat( zeros(N,M), [1 1 K]);
+Pi = repmat(zeros(N,M), [1 1 K]);
+Mu = repmat(zeros(N,M), [1 1 K]);
+Sigma = repmat(zeros(N,M), [1 1 K]);
+X_hat = repmat(zeros(N,M), [1 1 K]);
+X_var = repmat(zeros(N,M), [1 1 K]);
 Gamma = zeros(M,K);
-R     = repmat( zeros(N,M), [1 1 K]);
+R     = repmat(zeros(N,M), [1 1 K]);
 for k=1:K
     Gamma(:,k) = ones(M,1)./(L+2*L*diag(Y(:,:,k)'*Y(:,:,k))/norm(S,'fro')^2);
     R(:,:,k)   = S'*Y(:,:,k);
 end
 aclist = 1:N;
 %% Algorithm Parameter
-T_max = 200;
+MAXITER = 200;
 Damp = 0;
-Convergence_thr = 1e-4;
-normalized_change = zeros(1,T_max);
+Threshold = 1e-4;
+relative_change = zeros(1,MAXITER);
 %% SVD
 [Bar_U,Bar_S,Bar_V] = svd(S,'econ');
 Rank_S = rank(Bar_S);
@@ -54,13 +48,15 @@ for k=1:K
     R(:,:,k)   = S'*Y(:,:,k);
 end
 %% Iteration Process
-for t=1:T_max
+for t=1:MAXITER
     %% E-step
-    X_pre = X_hat;
-    Gamma_pre = Gamma;
-    if t>1
-        Damp = 0.3;%CE=0.03, JADCE=0.3
+    X_pre = X_hat; % X record for damp
+    Gamma_pre = Gamma; % Gamma record for damp
+    if t>0
+        Damp = 0.03; % Damp hyper-parameter
     end
+
+    % Pre-computation for AMP
     sum_temp = ones(N,1);
     for i=1:length(aclist)
         n = aclist(i);
@@ -72,14 +68,15 @@ for t=1:T_max
             end
         end
     end
-
     sum_temp(sum_temp<1e-6) = 1e-6;
+
+    % AMP iterations across M antennas
     for k=1:K
         for m=1:M
             alpha_m = 0;
             for i=1:length(aclist)
                 n = aclist(i);
-                if t<(6)
+                if t<(2)
                     Pi(n,m,k) = (1 + ((1-p(n))/p(n)) * (V(n,m,k) * Gamma(m,k) + 1)...
                         * exp( - Gamma(m,k)^2 * V(n,m,k) * norm(R(n,m,k),2)^2/(V(n,m,k)...
                         * Gamma(m,k) + 1)))^(-1); % Posterior activity probability
@@ -112,20 +109,19 @@ for t=1:T_max
     p = real(mean(Pi,[2 3]));
     p=real(p);
     p(p<1e-8) = 1e-8;
-    
+
     if (t>0)
         aclist = find(p>1e-8);
         inaclist = p==1e-8;
         X_hat(inaclist,:)=0;
     end
-
     %% Stop criteria
-    normalized_change(t) = norm(X_hat-X_pre,'fro')^2/norm(X_hat,'fro')^2;
-    if normalized_change(t) < Convergence_thr
+    relative_change(t) = norm(X_hat-X_pre,'fro')^2/norm(X_hat,'fro')^2;
+    if relative_change(t) < Threshold
         break;
     end
 end
-fprintf('Method: CVAMP, it %d: relative_change = %g\n', t, normalized_change(t));
+fprintf('Method: CVAMP, it %d: relative_change = %g\n', t, relative_change(t));
 %% Generate output
 X = X_hat;
 Pa = p;

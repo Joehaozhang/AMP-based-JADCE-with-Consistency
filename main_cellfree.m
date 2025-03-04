@@ -21,13 +21,13 @@ D = 3;
 K = 12;
 
 % Total Number of Users in Cell Network
-N = 200;
+N = 500;
 
 % Number of Antennas at each AP
-M = 8;
+M = 40;
 
 % Binomial Activity percentage: Activity pattern
-epsilon = 0.1;
+epsilon = 0.05;
 
 % Pilot Sequence Length
 L = 30;
@@ -41,7 +41,7 @@ sigma_sqrN = 1; % Normalized Sigma2
 TxPow = 200e-3; % 23dBm
 
 % Number of Monte-Carlo simulations
-monte = 100;
+monte = 10;
 %% Generate Signature Sequence (multiplied by transmit power)
 S = (1/sqrt(2*L)*complex(randn(L,N),randn(L,N)));
 S = S./vecnorm(S,2,1);
@@ -62,9 +62,9 @@ Beta_true   = zeros(N,K);
 Beta2       = zeros(N,K);
 %% Estimation Initialization
 G_hat_ghvi     = repmat(zeros(N,M),[1 1 K monte]);
-G_hat_map      = repmat(zeros(N,M),[1 1 K monte]);
+G_hat_AMP      = repmat(zeros(N,M),[1 1 K monte]);
 z_hat_ghvi     = zeros(N,monte);
-z_hat_map      = zeros(N,monte);
+Pa_AMP      = zeros(N,monte);
 %% Generate received signals
 for i = 1:1:monte
     %     Random active devices (Binomial distribution)
@@ -139,27 +139,10 @@ for i = 1:1:monte
     % GHVI algorithm
     % [G_hat_ghvi(:,:,:,i), z_hat_ghvi(:,i)] = VIAD_GH_cellfree(Y,S);
     % MAP algorithm
-    [G_hat_map(:,:,:,i), z_hat_map(:,i)] = MAP_GH_cellfree(Y,S);
+    [G_hat_AMP(:,:,:,i), Pa_AMP(:,i)] = CVAMP_cellfree(Y,S,1,Beta2*L);
 end
 %% Estimation END
 fprintf('Simulation Finished\n');
 %% Optional step: Dominant channel-based detection
 % Dominant AP selection for devices
 DominantAPSelection();
-
-% Dominant channel energy based MAP performance evaluation
-[PFAPMDNMSE_MAP] = PFAPMDNMSE_cellfree(G_hat_map,Active_List,10,G_hat_dominant_map,G_real_dominant,Gnorm2sum_real,Gnorm2sum_hat_map);
-
-% Dominant channel energy based GHVI performance evaluation
-[PFAPMDNMSE_GHVI] = PFAPMDNMSE_cellfree(G_hat_ghvi,Active_List,10,G_hat_dominant_ghvi,G_real_dominant,Gnorm2sum_real,Gnorm2sum_hat_ghvi);
-
-%% Optional step: Sparsity controlling hyper parameter-based detection (i.e., z-based)
-% Normalize hyper parameter z
-z_hat_map_normalized  = z_hat_map./(ones(N,1)*max(z_hat_map));
-z_hat_ghvi_normalized = z_hat_ghvi./(ones(N,1)*max(z_hat_ghvi));
-
-% z-based MAP performance evaluation
-[PFAPMD_map] = PFAPMD(z_hat_map,Active_List,100);
-
-% z-based GHVI performance evaluation
-[PFAPMD_ghvi] = PFAPMD(z_hat_ghvi,Active_List,100);
