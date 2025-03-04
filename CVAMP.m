@@ -29,7 +29,7 @@ aclist = 1:K;
 totlist = 1:K;
 %% Algorithm Parameter
 MAXITER = 200;
-Damp = 0;
+Damp = 0.03;
 Threshold = 1e-4;
 relative_change = zeros(1,MAXITER);
 %% SVD
@@ -42,9 +42,6 @@ for t=1:MAXITER
     %% E-step
     X_pre = X_hat; % X record for damp
     Gamma_pre = Gamma; % Gamma record for damp
-    if t>0
-        Damp = 0.03; % Damp hyper-parameter
-    end
 
     % Pre-computation for AMP
     prod_temp = ones(K,1);

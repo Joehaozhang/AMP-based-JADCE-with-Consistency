@@ -36,7 +36,7 @@ end
 aclist = 1:N;
 %% Algorithm Parameter
 MAXITER = 200;
-Damp = 0;
+Damp = 0.03;
 Threshold = 1e-4;
 relative_change = zeros(1,MAXITER);
 %% SVD
@@ -52,9 +52,6 @@ for t=1:MAXITER
     %% E-step
     X_pre = X_hat; % X record for damp
     Gamma_pre = Gamma; % Gamma record for damp
-    if t>0
-        Damp = 0.03; % Damp hyper-parameter
-    end
 
     % Pre-computation for AMP
     sum_temp = ones(N,1);
@@ -76,7 +73,7 @@ for t=1:MAXITER
             alpha_m = 0;
             for i=1:length(aclist)
                 n = aclist(i);
-                if t<(2)
+                if t<(14)
                     Pi(n,m,k) = (1 + ((1-p(n))/p(n)) * (V(n,m,k) * Gamma(m,k) + 1)...
                         * exp( - Gamma(m,k)^2 * V(n,m,k) * norm(R(n,m,k),2)^2/(V(n,m,k)...
                         * Gamma(m,k) + 1)))^(-1); % Posterior activity probability
@@ -110,11 +107,11 @@ for t=1:MAXITER
     p=real(p);
     p(p<1e-8) = 1e-8;
 
-    if (t>0)
-        aclist = find(p>1e-8);
-        inaclist = p==1e-8;
-        X_hat(inaclist,:)=0;
-    end
+    % if (t>0)
+    %     aclist = find(p>1e-8);
+    %     inaclist = p==1e-8;
+    %     X_hat(inaclist,:)=0;
+    % end
     %% Stop criteria
     relative_change(t) = norm(X_hat-X_pre,'fro')^2/norm(X_hat,'fro')^2;
     if relative_change(t) < Threshold

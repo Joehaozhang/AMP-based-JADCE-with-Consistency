@@ -18,7 +18,7 @@ clc
 D = 3;
 
 % Number of BS
-K = 12;
+K = 1;
 
 % Total Number of Users in Cell Network
 N = 500;
@@ -88,7 +88,7 @@ for i = 1:1:monte
         Beta(:,k) = 0.2 * 10.^((-128.1 - 37.6*log10(dist))/10);
 
         %     Pathloss with noise
-        Beta_true(:,k) = 0.2 * 10.^((-128.1 - 37.6*log10(dist)+2*rand(N,1))/10);
+        Beta_true(:,k) = 0.2 * 10.^((-128.1 - 37.6*log10(dist)+0*rand(N,1))/10);
 
         %     Pathloss for normalized noise (variance=1)
         Beta(:,k) = Beta(:,k)/sigma_sqr;
@@ -98,6 +98,8 @@ for i = 1:1:monte
     maxBeta2          = maxBeta;
     idx_snr           = find(maxBeta > 10);
     maxBeta2(idx_snr) = 10;
+    idx_snr2          = find(maxBeta < 10);
+    maxBeta2(idx_snr2)= 10;
     PowControl        = maxBeta2./maxBeta;
     Beta2             = PowControl.*Beta_true/sigma_sqr;
     idx2              = find(maxBeta2>0);
@@ -109,15 +111,8 @@ for i = 1:1:monte
         % NLoS channel
         H = (1/sqrt(2)*complex(randn(N,M),randn(N,M)));
 
-        % LoS channel
-        N_rician = randperm(N);
-        Percent_rician = 0.3;
-        K_rician = 0.6*rand(N*Percent_rician,1);
-        random_phase_shift = sqrt(-1)*2*pi*rand(N*Percent_rician,1);
-        H(N_rician(1:Percent_rician*N),:) = sqrt(K_rician./(K_rician+1)).*exp(random_phase_shift * linspace(0,M-1,M)) + sqrt(1./(K_rician+1)) .* H(N_rician(1:Percent_rician*N),:);
-
         % Noise
-        W = 10^(0.1*sqrt(0.2)*randn(1))*(1/sqrt(2)*complex(randn(L,M),randn(L,M)));
+        W = (1/sqrt(2)*complex(randn(L,M),randn(L,M)));
 
         % Large-scale fading coefficients
         X = diag(sqrt(L*gamma(:,i,k)));
@@ -136,10 +131,7 @@ for i = 1:1:monte
     end
     fprintf('Trial %d\n', i);
     %% Activity detection and Channel estimation
-    % GHVI algorithm
-    % [G_hat_ghvi(:,:,:,i), z_hat_ghvi(:,i)] = VIAD_GH_cellfree(Y,S);
-    % MAP algorithm
-    [G_hat_AMP(:,:,:,i), Pa_AMP(:,i)] = CVAMP_cellfree(Y,S,1,Beta2*L);
+    [G_hat_AMP(:,:,:,i), Pa_AMP(:,i)] = CVAMP(Y,S,1,Beta2*L);
 end
 %% Estimation END
 fprintf('Simulation Finished\n');
