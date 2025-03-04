@@ -1,4 +1,4 @@
-function [X,Pa,state_conv,recov_it] = CAMP(Y,S,gamma_w,lsfc,Pa)
+function [X,Pa] = CAMP(Y,S,gamma_w,lsfc)
 %% System Size Extraction
 [L,M] = size(Y);
 [~,N] = size(S);
@@ -82,13 +82,6 @@ for t=1:T_max
     % aclist = find(p>1e-8);
     % inaclist = p==1e-8;
     % X_hat(inaclist,:)=0;
-
-    % update $v_nm$
-    % for n=1:N
-    %     for m=1:M
-    %         V(n,m) = real(Mu(n,m)' * Mu(n,m) + Sigma(n,m));
-    %     end
-    % end
 
     % Stop criteria
     normalized_change(t) = norm(X_hat-X_pre,'fro')^2/norm(X_hat,'fro')^2;

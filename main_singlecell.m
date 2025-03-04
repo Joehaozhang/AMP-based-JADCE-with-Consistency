@@ -104,7 +104,7 @@ for i = 1:1:monte
 
     fprintf('Trial %d\n', i);
 
-    [G_hat_CAMP(:,:,i),P_a_CAMP(:,i)] = CVAMP(Y,S,sigma_sqrN,Beta'*L);
+    [G_hat_CAMP(:,:,i),P_a_CAMP(:,i)] = AMP_with_consistent_sparsity(Y,S,sigma_sqrN,Beta'*L,'AMP');
 end
 %% END
 fprintf('Simulation Finished\n');

@@ -1,32 +1,18 @@
-function [X,Pa] = CVAMP(Y,S,gamma_w,lsfc,AMP_option)
-%EMVAMP 此处显示有关此函数的摘要
-%Expectation-Maximization framework for activity detection and channel
-%estimation in IRS-assisted Massive MIMO system, where E-step is
-%implemented with vector AMP algorihtm and M-step follow a
-%block-coordinate-descent optimization.
-%   此处显示详细说明
-%The received signal model is: Y=S*X+W
-%where S is the sensing matrix, W is the additive white Gaussian noise with
-%unknown noise precision $\gamma_w$ $W_{lm}~CN(0,1/\gamma_w)$.
-%For E-step, we place a spike and slab prior for each entry in X that
-%$x_{nm}~(1-p_n)\delta(x_{nm}+p_n CN(0,v_nm)$ where activity probability of
-%$n$th device $p_n$ and variance $v_{nm}$ are unknown.
-
+function [X,Pa] = AMP_with_consistent_sparsity(Y,S,gamma_w,lsfc,AMP_option)
 %% System Size Extraction
 [L,M] = size(Y);
-[~,K] = size(S);
+[~,N] = size(S);
 %% Hyper-parameters Initialization
-p = 0.5*ones(K,1);
+p = 0.5*ones(N,1);
 V = lsfc * ones(1,M);
 %% Variable Initialization
-Pi = zeros(K,M);
-Mu = zeros(K,M);
-Sigma = zeros(K,M);
-X_hat = zeros(K,M);
-X_var = zeros(K,M);
-Gamma = ones(M,1)./(L+L*diag(Y'*Y)/norm(S,'fro')^2);
-aclist = 1:K;
-totlist = 1:K;
+Pi = zeros(N,M);
+Mu = zeros(N,M);
+Sigma = zeros(N,M);
+X_hat = zeros(N,M);
+X_var = zeros(N,M);
+Gamma = ones(M,1)./(L+2*L*diag(Y'*Y)/norm(S,'fro')^2);
+aclist = 1:N;
 %% Algorithm Parameter
 MAXITER = 200;
 Damp = 0.03;
@@ -37,6 +23,7 @@ relative_change = zeros(1,MAXITER);
 Rank_S = rank(Bar_S);
 Y_tilde = Bar_S \ Bar_U' * Y;
 R = S'*Y;
+Vk = zeros(L,M);
 %% Iteration Process
 for t=1:MAXITER
     %% E-step
@@ -44,9 +31,8 @@ for t=1:MAXITER
     Gamma_pre = Gamma; % Gamma record for damp
 
     % Pre-computation for AMP
-    prod_temp = ones(K,1);
-    for i=1:length(totlist)
-        n = totlist(i);
+    prod_temp = ones(N,1);
+    for n=1:N
         for m=1:M
             prod_temp(n) = prod_temp(n) * (V(n,m) * Gamma(m) + 1)...
                 * exp( - Gamma(m)^2 * V(n,m) * norm(R(n,m),2)^2/(V(n,m)...
@@ -82,14 +68,21 @@ for t=1:MAXITER
             phi_temp = 1/Pi(n,m);
             omega_temp = 1 + (Gamma(m)^2 * V(n,m) * (phi_temp-1) * norm(R(n,m),2)^2)/((Gamma(m)*V(n,m) + 1) * phi_temp);
             alpha_temp = (Gamma(m)*V(n,m))/(Gamma(m)*V(n,m)+1) * (omega_temp/phi_temp);
-            alpha_m = alpha_m + alpha_temp/K;
+            alpha_m = alpha_m + alpha_temp/N;
         end
-        R_tilde = (X_hat(:,m) - alpha_m * R(:,m))/(1 - alpha_m);
-        gamma_tilde = real(Gamma(m) * (1 - alpha_m)/alpha_m);
-        d = gamma_w * (gamma_w * Bar_S .* Bar_S + gamma_tilde * eye(Rank_S))^(-1)...
-            * diag(Bar_S .* Bar_S);
-        Gamma(m) = Damp * Gamma_pre(m) + (1-Damp) * real(gamma_tilde * mean(d) / (K/Rank_S - mean(d))); % Update Gamma(m)
-        R(:,m) = R_tilde + (K/Rank_S) * Bar_V * diag(d/mean(d)) * (Y_tilde(:,m) - Bar_V' * R_tilde);
+        if strcmp(AMP_option, 'vector AMP') == 1
+            R_tilde = (X_hat(:,m) - alpha_m * R(:,m))/(1 - alpha_m);
+            gamma_tilde = real(Gamma(m) * (1 - alpha_m)/alpha_m);
+            d = gamma_w * (gamma_w * Bar_S .* Bar_S + gamma_tilde * eye(Rank_S))^(-1)...
+                * diag(Bar_S .* Bar_S);
+            Gamma(m) = Damp * Gamma_pre(m) + (1-Damp) * real(gamma_tilde * mean(d) / (N/Rank_S - mean(d))); % Update Gamma(m)
+            R(:,m) = R_tilde + (N/Rank_S) * Bar_V * diag(d/mean(d)) * (Y_tilde(:,m) - Bar_V' * R_tilde);
+        elseif strcmp(AMP_option, 'AMP') == 1
+            Vk(:,m) = Y(:,m) - S*X_hat(:,m) + (N/L)*alpha_m*Vk(:,m);
+            R(:,m) = X_hat(:,m) + S'*Vk(:,m);
+            Gamma_temp = (norm(Vk(:,m),2)^2/L)^(-1);
+            Gamma(m) = Damp * Gamma_pre(m) + (1-Damp) * Gamma_temp;
+        end
     end
 
     %% M-step
