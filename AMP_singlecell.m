@@ -1,4 +1,4 @@
-function [X,Pa] = AMP_with_consistent_sparsity(Y,S,gamma_w,lsfc,AMP_option)
+function [X,Pa] = AMP_singlecell(Y,S,gamma_w,lsfc,AMP_option)
 %% System Size Extraction
 [L,M] = size(Y);
 [~,N] = size(S);
@@ -6,24 +6,24 @@ function [X,Pa] = AMP_with_consistent_sparsity(Y,S,gamma_w,lsfc,AMP_option)
 p = 0.5*ones(N,1);
 V = lsfc * ones(1,M);
 %% Variable Initialization
-Pi = zeros(N,M);
-Mu = zeros(N,M);
-Sigma = zeros(N,M);
-X_hat = zeros(N,M);
-X_var = zeros(N,M);
-Gamma = ones(M,1)./(L+2*L*diag(Y'*Y)/norm(S,'fro')^2);
+Pi     = zeros(N,M);
+Mu     = zeros(N,M);
+Sigma  = zeros(N,M);
+X_hat  = zeros(N,M);
+X_var  = zeros(N,M);
+R      = S'*Y;
+Vk     = zeros(L,M);
+Gamma  = ones(M,1)./(L+2*L*diag(Y'*Y)/norm(S,'fro')^2);
 aclist = 1:N;
 %% Algorithm Parameter
-MAXITER = 200;
-Damp = 0.03;
+MAXITER   = 200;
+Damp      = 0.03;
 Threshold = 1e-4;
 relative_change = zeros(1,MAXITER);
 %% SVD
 [Bar_U,Bar_S,Bar_V] = svd(S,'econ');
-Rank_S = rank(Bar_S);
+Rank_S  = rank(Bar_S);
 Y_tilde = Bar_S \ Bar_U' * Y;
-R = S'*Y;
-Vk = zeros(L,M);
 %% Iteration Process
 for t=1:MAXITER
     %% E-step
@@ -61,32 +61,37 @@ for t=1:MAXITER
                     Pi(n,m)=1e-8;
                 end
             end
-            Mu(n,m) = V(n,m) * Gamma(m)/(V(n,m) * Gamma(m) + 1) * R(n,m); % Mean of channel
+            Mu(n,m)    = V(n,m) * Gamma(m)/(V(n,m) * Gamma(m) + 1) * R(n,m); % Mean of channel
             Sigma(n,m) = real(V(n,m)/(V(n,m) * Gamma(m) + 1)); % Variance of channel
             X_hat(n,m) = Damp * X_pre(n,m) + (1-Damp) * Pi(n,m) * Mu(n,m); % Posterior mean
             X_var(n,m) = Pi(n,m) * Sigma(n,m); % Posterior variance
-            phi_temp = 1/Pi(n,m);
-            omega_temp = 1 + (Gamma(m)^2 * V(n,m) * (phi_temp-1) * norm(R(n,m),2)^2)/((Gamma(m)*V(n,m) + 1) * phi_temp);
-            alpha_temp = (Gamma(m)*V(n,m))/(Gamma(m)*V(n,m)+1) * (omega_temp/phi_temp);
-            alpha_m = alpha_m + alpha_temp/N;
+            phi_temp   = 1/Pi(n,m);
+            omega_temp = 1 + (Gamma(m)^2 * V(n,m) * (phi_temp-1) ...
+                * norm(R(n,m),2)^2)/((Gamma(m)*V(n,m) + 1) * phi_temp);
+            alpha_temp = (Gamma(m)*V(n,m))/(Gamma(m)*V(n,m)+1) ...
+                * (omega_temp/phi_temp);
+            alpha_m    = alpha_m + alpha_temp/N;
         end
         if strcmp(AMP_option, 'vector AMP') == 1
-            R_tilde = (X_hat(:,m) - alpha_m * R(:,m))/(1 - alpha_m);
+            R_tilde     = (X_hat(:,m) - alpha_m * R(:,m))/(1 - alpha_m);
             gamma_tilde = real(Gamma(m) * (1 - alpha_m)/alpha_m);
-            d = gamma_w * (gamma_w * Bar_S .* Bar_S + gamma_tilde * eye(Rank_S))^(-1)...
+            d = gamma_w * (gamma_w * Bar_S .* Bar_S + gamma_tilde ...
+                * eye(Rank_S))^(-1)...
                 * diag(Bar_S .* Bar_S);
-            Gamma(m) = Damp * Gamma_pre(m) + (1-Damp) * real(gamma_tilde * mean(d) / (N/Rank_S - mean(d))); % Update Gamma(m)
-            R(:,m) = R_tilde + (N/Rank_S) * Bar_V * diag(d/mean(d)) * (Y_tilde(:,m) - Bar_V' * R_tilde);
+            Gamma(m) = Damp * Gamma_pre(m) + (1-Damp) * real(gamma_tilde...
+                * mean(d) / (N/Rank_S - mean(d))); % Update Gamma(m)
+            R(:,m)   = R_tilde + (N/Rank_S) * Bar_V * diag(d/mean(d))...
+                * (Y_tilde(:,m) - Bar_V' * R_tilde);
         elseif strcmp(AMP_option, 'AMP') == 1
-            Vk(:,m) = Y(:,m) - S*X_hat(:,m) + (N/L)*alpha_m*Vk(:,m);
-            R(:,m) = X_hat(:,m) + S'*Vk(:,m);
+            Vk(:,m)    = Y(:,m) - S*X_hat(:,m) + (N/L)*alpha_m*Vk(:,m);
+            R(:,m)     = X_hat(:,m) + S'*Vk(:,m);
             Gamma_temp = (norm(Vk(:,m),2)^2/L)^(-1);
-            Gamma(m) = Damp * Gamma_pre(m) + (1-Damp) * Gamma_temp;
+            Gamma(m)   = Damp * Gamma_pre(m) + (1-Damp) * Gamma_temp;
         end
     end
 
     %% M-step
-    %Update $p_n$
+    % Update $p_n$
     p = real(mean(Pi,2));
     p=real(p);
     p(p<1e-8) = 1e-8;
@@ -96,8 +101,8 @@ for t=1:MAXITER
         break;
     end
 end
-fprintf('Method: CVAMP, it %d: relative_change = %g\n', t, relative_change(t));
-
-% Generate output
+fprintf('Method: CVAMP, it %d: relative_change = %g\n', t, ...
+    relative_change(t));
+%% Generate output
 X = X_hat;
 Pa = p;
