@@ -18,7 +18,7 @@ R     = repmat(zeros(N,M), [1 1 K]);
 Vk    = repmat( zeros(L,M), [1 1 K]);
 Gamma = zeros(M,K);
 for k=1:K
-    Gamma(:,k) = ones(M,1)./(L+2*L*diag(Y(:,:,k)'*Y(:,:,k))/norm(S,'fro')^2);
+    Gamma(:,k) = ones(M,1)./(L+L*diag(Y(:,:,k)'*Y(:,:,k))/norm(S,'fro')^2);
     R(:,:,k)   = S'*Y(:,:,k);
 end
 aclist = 1:N;

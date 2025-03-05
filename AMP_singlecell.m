@@ -13,7 +13,7 @@ X_hat  = zeros(N,M);
 X_var  = zeros(N,M);
 R      = S'*Y;
 Vk     = zeros(L,M);
-Gamma  = ones(M,1)./(L+2*L*diag(Y'*Y)/norm(S,'fro')^2);
+Gamma  = ones(M,1)./(L+L*diag(Y'*Y)/norm(S,'fro')^2);
 aclist = 1:N;
 %% Algorithm Parameter
 MAXITER   = 200;

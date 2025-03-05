@@ -126,12 +126,12 @@ for i = 1:1:monte
     end
     fprintf('Trial %d\n', i);
     %% Activity detection and Channel estimation
-    [G_hat_AMP(:,:,:,i), Pa_AMP(:,i)] = CAMP_JADCE(Y,S,1,Beta2*L,'vector AMP');
+    [G_hat_AMP(:,:,:,i), Pa_AMP(:,i)] = CAMP_JADCE(Y,S,1,Beta2*L,'AMP');
 end
 %% Estimation END
 fprintf('Simulation Finished\n');
 %% Activity Detection Evaluation
-[PFAPMD_CAMP] = PFAPMD(Pa_AMP,Active_List,100);
+[PFAPMD_AMP] = PFAPMD(Pa_AMP,Active_List,100);
 %% Optional step: Dominant channel-based detection
 % Dominant AP selection for devices
 DominantAPSelection();
