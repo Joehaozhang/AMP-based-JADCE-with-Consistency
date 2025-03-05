@@ -64,9 +64,7 @@ Beta        = zeros(N,K);
 Beta_true   = zeros(N,K);
 Beta2       = zeros(N,K);
 %% Estimation Initialization
-G_hat_ghvi = repmat(zeros(N,M),[1 1 K monte]);
 G_hat_AMP  = repmat(zeros(N,M),[1 1 K monte]);
-z_hat_ghvi = zeros(N,monte);
 Pa_AMP     = zeros(N,monte);
 %% Generate received signals
 for i = 1:1:monte
@@ -96,17 +94,14 @@ for i = 1:1:monte
         % Pathloss for normalized noise (variance=1)
         Beta(:,k) = Beta(:,k)/sigma_sqr;
     end
-
-    maxBeta            = max(Beta,[],2);
-    maxBeta2           = maxBeta;
-    idx_snr            = find(maxBeta > 10);
-    maxBeta2(idx_snr)  = 10;
-    idx_snr2           = find(maxBeta < 10);
-    maxBeta2(idx_snr2) = 10;
-    PowControl         = maxBeta2./maxBeta;
-    Beta2              = PowControl.*Beta_true/sigma_sqr;
-    idx2               = find(maxBeta2>0);
-    idx                = intersect(idx,idx2);
+    
+    SNR        = 10;
+    maxBeta    = max(Beta,[],2);
+    maxBeta2   = 10^(SNR/10) * ones(N,1);
+    PowControl = maxBeta2./maxBeta;
+    Beta2      = PowControl.*Beta_true/sigma_sqr;
+    idx2       = find(maxBeta2>0);
+    idx        = intersect(idx,idx2);
 
     for k=1:K
         gamma(idx,i,k) = Beta2(idx,k);
